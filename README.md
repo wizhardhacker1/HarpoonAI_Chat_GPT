@@ -32,7 +32,7 @@ then
 
 cd backend/
 ( rename old prior)   mv server.py server.old
-replace server.py with one in the HarpoonAI folder ( rename old prior)
+replace server.py with one in the HarpoonAI folder 
 
 
 After that cd back out to HarpoonAI and then run
