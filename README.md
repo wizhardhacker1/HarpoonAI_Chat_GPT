@@ -19,7 +19,7 @@ This project provides an offline AI chat interface using uncensored versions of 
    ```bash
    ./installer.sh
    ```
-   !! STOP IF RUNNING _ Replace the `index.html` and `server.py` files with the original versions from the `HarpoonAI` folder.  This step may be necessary due to potential file modifications during runtime !!
+   !! STOP IF RUNNING _ Replace the `index.html` and `server.py` files with the original versions from the `HarpoonAI` folder.  This step is necessary due to upgraded files !!
 
 
 1. **Frontend Update:**
