@@ -45,7 +45,7 @@ cd HarpoonAI
 
 ## Tested Environment
 
-Fedora
+Fedora server/workstation  and RedHat Server
 
 ## Models Included
 
