@@ -1,3 +1,4 @@
+![HAI](https://github.com/user-attachments/assets/d07b1ae0-3d9e-46ca-8fab-c4c22a046771)
 # HarpoonAI
 HarpoonAI Private GPT 
 
