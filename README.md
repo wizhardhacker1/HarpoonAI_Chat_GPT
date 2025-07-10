@@ -1,7 +1,7 @@
 # HarpoonAI
 HarpoonAI Private GPT 
 
-
+Download - unzip 
 
 Tested on Fedora 
 
