@@ -2,7 +2,7 @@
 
 HarpoonAI Private GPT 
 
-# HarpoonAI Using 
+# HarpoonAI
 llama 7b uncensored
 Falcon 40b uncensored
 
