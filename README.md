@@ -19,17 +19,8 @@ This project provides an offline AI chat interface using uncensored versions of 
    ```bash
    ./installer.sh
    ```
+   !! STOP IF RUNNING _ Replace the `index.html` and `server.py` files with the original versions from the `HarpoonAI` folder.  This step may be necessary due to potential file modifications during runtime !!
 
-## Running HarpoonAI
-
-```bash
-cd HarpoonAI
-./startAI.sh
-```
-
-## Stopping and Restarting
-
-If you stop the application using `CTRL-C` and need to restart, you may need to replace the `index.html` and `server.py` files with the original versions from the `HarpoonAI` folder.  This step may be necessary due to potential file modifications during runtime.
 
 1. **Frontend Update:**
    ```bash
@@ -43,11 +34,14 @@ If you stop the application using `CTRL-C` and need to restart, you may need to 
    mv server.py server.old  # Backup existing file
    cp ../../HarpoonAI/server.py . # Replace with the original
    ```
-3. **Restart:**
-   ```bash
-   cd ../../HarpoonAI
-   ./startAI.sh
-   ```
+
+## Running HarpoonAI
+
+```bash
+cd HarpoonAI
+./startAI.sh
+```
+
 
 ## Tested Environment
 
