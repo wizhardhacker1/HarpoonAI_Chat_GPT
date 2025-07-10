@@ -7,7 +7,7 @@ This project provides an offline AI chat interface using uncensored versions of 
 
 ## Download & Installation
 
-1. **Download:**
+1. **Download:** https://github.com/wizhardhacker1/HarpoonAI/blob/main/HarpoonAI.zip
 2. **Unzip:** Extract the downloaded archive.
 3. **Copy:** Move the `HarpoonAI` folder to your `/home` directory or `/opt`.
 4. **Permissions:**
