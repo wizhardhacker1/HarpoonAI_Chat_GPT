@@ -33,15 +33,15 @@ This project provides an offline AI chat interface using uncensored versions of 
    • Duplicate content detection
 
 📁 Log Files:
-   LLaMA:   /home/harper/offline_ai_chat/llama_server.log
-   Falcon:  /home/harper/offline_ai_chat/falcon_server.log
-   Backend: /home/harper/offline_ai_chat/backend_server.log
+   LLaMA:   /home/USER/offline_ai_chat/llama_server.log
+   Falcon:  /home/USER/offline_ai_chat/falcon_server.log
+   Backend: /home/USER/offline_ai_chat/backend_server.log
 
 🎉 To start the FIXED system:
-   /home/harper/offline_ai_chat/start_harpoonai.sh
+   /home/USER/offline_ai_chat/start_harpoonai.sh
 
 🛑 To stop all services:
-   /home/harper/offline_ai_chat/stop_harpoonai.sh
+   /home/USER/offline_ai_chat/stop_harpoonai.sh
 
 🌐 Once started, access: http://localhost:8000
 
