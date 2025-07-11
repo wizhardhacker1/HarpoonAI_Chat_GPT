@@ -1,4 +1,5 @@
-![HAI](https://github.com/user-attachments/assets/d07b1ae0-3d9e-46ca-8fab-c4c22a046771)
+<img width="905" height="883" alt="HarpoonAIv2" src="https://github.com/user-attachments/assets/1b841897-dc76-4f96-a750-0f0dc23a2376" />
+
 
 ```markdown
 # HarpoonAI - Offline AI Chat with Llama 7B and Falcon 40B (Uncensored)
@@ -7,43 +8,42 @@ This project provides an offline AI chat interface using uncensored versions of 
 
 ## Download & Installation
 
-1. **Download:** https://github.com/wizhardhacker1/HarpoonAI/blob/main/HarpoonAI.zip
-2. **Unzip:** Extract the downloaded archive.
-3. **Copy:** Move the `HarpoonAI` folder to your `/home` directory or `/opt`.
+1. **Download:** 
+3. **Create:** `HarpoonAI` folder to your `/home` directory or `/opt`.
 4. **Permissions:**
    ```bash
    cd HarpoonAI
+   copy install.sh to `HarpoonAI` folder
    chmod +x *.sh
    ```
 5. **Run Installer:**
    ```bash
-   ./installer.sh
+   ./install.sh
    ```
-   !! STOP IF RUNNING _ Replace the `index.html` and `server.py` files with the original versions from the `HarpoonAI` folder.  This step is necessary due to upgraded files !!
+🌐 Web Interface: http://localhost:8000
+🤖 LLaMA Server: http://localhost:8080
+🦅 Falcon Server: http://localhost:8081
 
+✅ FIXES APPLIED:
+   • URL ingestion endpoint fixed (POST method)
+   • Document search algorithm improved with better scoring
+   • Enhanced error handling and user feedback
+   • Better file processing for multiple formats
+   • Improved web content extraction with retry logic
+   • Duplicate content detection
 
-1. **Frontend Update:**
-   ```bash
-   cd offline_ai_chat/frontend/
-   mv index.html index.old  # Backup existing file
-   cp ../../HarpoonAI/index.html . # Replace with the original
-   ```
-2. **Backend Update:**
-   ```bash
-   cd ../backend/
-   mv server.py server.old  # Backup existing file
-   cp ../../HarpoonAI/server.py . # Replace with the original
-   ```
+📁 Log Files:
+   LLaMA:   /home/harper/offline_ai_chat/llama_server.log
+   Falcon:  /home/harper/offline_ai_chat/falcon_server.log
+   Backend: /home/harper/offline_ai_chat/backend_server.log
 
-## Running HarpoonAI
+🎉 To start the FIXED system:
+   /home/harper/offline_ai_chat/start_harpoonai.sh
 
-```bash
-cd HarpoonAI
-./startAI.sh
-```
+🛑 To stop all services:
+   /home/harper/offline_ai_chat/stop_harpoonai.sh
 
-
-## Tested Environment
+🌐 Once started, access: http://localhost:8000
 
 Fedora server/workstation  and RedHat Server
 
