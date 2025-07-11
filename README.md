@@ -37,6 +37,7 @@ This project provides an offline AI chat interface using uncensored versions of 
    
    • Duplicate content detection
 
+----------------------------------------------------------------
 📁 Log Files:
    LLaMA:   /home/USER/offline_ai_chat/llama_server.log
    
@@ -44,18 +45,27 @@ This project provides an offline AI chat interface using uncensored versions of 
    
    Backend: /home/USER/offline_ai_chat/backend_server.log
 
+----------------------------------------------------------------
+
 🎉 To start the FIXED system:
 
    /home/USER/offline_ai_chat/start_harpoonai.sh
+
+---------------------------------------------------------------- 
 
 🛑 To stop all services:
 
    /home/USER/offline_ai_chat/stop_harpoonai.sh
 
+----------------------------------------------------------------
 
 🌐 Once started, access: http://localhost:8000
 
-Fedora server/workstation  and RedHat Server
+----------------------------------------------------------------
+## Tessted On
+* Fedora server
+* Fedora workstation
+* RedHat Server
 
 ## Models Included
 
