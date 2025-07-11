@@ -26,22 +26,32 @@ This project provides an offline AI chat interface using uncensored versions of 
 
 ✅ FIXES APPLIED:
    • URL ingestion endpoint fixed (POST method)
+   
    • Document search algorithm improved with better scoring
+   
    • Enhanced error handling and user feedback
+   
    • Better file processing for multiple formats
+   
    • Improved web content extraction with retry logic
+   
    • Duplicate content detection
 
 📁 Log Files:
    LLaMA:   /home/USER/offline_ai_chat/llama_server.log
+   
    Falcon:  /home/USER/offline_ai_chat/falcon_server.log
+   
    Backend: /home/USER/offline_ai_chat/backend_server.log
 
 🎉 To start the FIXED system:
+
    /home/USER/offline_ai_chat/start_harpoonai.sh
 
 🛑 To stop all services:
+
    /home/USER/offline_ai_chat/stop_harpoonai.sh
+
 
 🌐 Once started, access: http://localhost:8000
 
