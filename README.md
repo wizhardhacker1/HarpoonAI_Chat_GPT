@@ -2,7 +2,7 @@
 
 
 ```markdown
-# HarpoonAI - Offline AI Chat with Llama 7B and Falcon 40B (Uncensored)
+# HarpoonAI - Offline AI Chat with Llama 7B and Falcon 40B (Uncensored) w/GPU support
 
 This project provides an offline AI chat interface using uncensored versions of Llama 7B and Falcon 40B.
 
