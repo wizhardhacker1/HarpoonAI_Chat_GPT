@@ -24,9 +24,13 @@ This project provides an offline AI chat interface using uncensored versions of 
 🦅 Falcon Server: http://localhost:8081
 
 ✅ Vector embeddings for semantic understanding
+
 ✅ ChromaDB vector database for intelligent search
+
 ✅ Improved document chunking with sentence-transformers
+
 ✅ Hybrid search combining semantic + keyword matching
+
 ✅ Enhanced conversation context management 
 ----------------------------------------------------------------
 📁 Log Files:
@@ -53,7 +57,7 @@ This project provides an offline AI chat interface using uncensored versions of 
 🌐 Once started, access: http://localhost:8000
 
 ----------------------------------------------------------------
-## Tessted On
+## Tested On
 * Fedora server
 * Fedora workstation
 * RedHat Server
