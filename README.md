@@ -1,4 +1,4 @@
-<img width="905" height="883" alt="HarpoonAIv2" src="https://github.com/user-attachments/assets/1b841897-dc76-4f96-a750-0f0dc23a2376" />
+<img width="1351" height="994" alt="Screenshot From 2025-07-11 20-46-31" src="https://github.com/user-attachments/assets/3e9ce229-c515-43f1-965c-f8c6c37ef379" />
 
 
 ```markdown
@@ -10,33 +10,24 @@ This project provides an offline AI chat interface using uncensored versions of 
 
 1. **Download:** 
 3. **Create:** `HarpoonAI` folder to your `/home` directory or `/opt`.
-4. **Permissions:**
-   ```bash
+
    cd HarpoonAI
    copy install.sh to `HarpoonAI` folder
    chmod +x *.sh
    ```
-5. **Run Installer:**
-   ```bash
+4. **Run Installer:**
+
    ./install.sh
-   ```
+
 🌐 Web Interface: http://localhost:8000
 🤖 LLaMA Server: http://localhost:8080
 🦅 Falcon Server: http://localhost:8081
 
-✅ FIXES APPLIED:
-   • URL ingestion endpoint fixed (POST method)
-   
-   • Document search algorithm improved with better scoring
-   
-   • Enhanced error handling and user feedback
-   
-   • Better file processing for multiple formats
-   
-   • Improved web content extraction with retry logic
-   
-   • Duplicate content detection
-
+✅ Vector embeddings for semantic understanding
+✅ ChromaDB vector database for intelligent search
+✅ Improved document chunking with sentence-transformers
+✅ Hybrid search combining semantic + keyword matching
+✅ Enhanced conversation context management 
 ----------------------------------------------------------------
 📁 Log Files:
    LLaMA:   /home/USER/offline_ai_chat/llama_server.log
