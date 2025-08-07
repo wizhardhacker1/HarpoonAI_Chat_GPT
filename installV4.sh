@@ -1,7 +1,6 @@
 #!/bin/bash
 
 # HarpoonAI Enhanced Installer with GPU Support, Vector Embeddings & Semantic Search
-# Version 3.0.1 - FIXED for Fedora Plasma with proper dependency management
 
 set -e  # Exit on error
 
