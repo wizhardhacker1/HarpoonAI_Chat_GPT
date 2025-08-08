@@ -12,12 +12,12 @@ This project provides an offline AI chat interface using uncensored versions of 
 3. **Create:** `HarpoonAI` folder to your `/home` directory or `/opt`.
 
    cd HarpoonAI
-   copy install.sh to `HarpoonAI` folder
+   copy installv4.sh to `HarpoonAI` folder
    chmod +x *.sh
    ```
 4. **Run Installer:**
 
-   ./install.sh
+   ./installv4.sh
 
 🌐 Web Interface: http://localhost:8000
 🤖 LLaMA Server: http://localhost:8080
