@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # HarpoonAI Enhanced Installer with GPU Support, Vector Embeddings & Semantic Search
-# FIXED VERSION - Resolves timeout and document context issues
+# FULLY FIXED VERSION - No numba conflicts, proper response lengths
 
 set -e  # Exit on error
 
@@ -99,41 +99,46 @@ source "$VENV_DIR/bin/activate"
 # Upgrade pip and install wheel first
 pip install --upgrade pip wheel setuptools
 
-# FIX: Install critical dependencies in correct order
-echo "🔧 Installing dependencies in correct order..."
+# FIX 1: PROPER DEPENDENCY INSTALLATION ORDER WITHOUT NUMBA CONFLICTS
+echo "🔧 Installing dependencies in correct order (no numba conflicts)..."
 
-# 1. Install numpy first with version constraint
-pip install "numpy<2.0,>=1.24"
+# Install numpy ONCE with proper version
+pip install --no-cache-dir "numpy==1.24.3"
 
-# 2. Install core web/file dependencies
-pip install fastapi uvicorn requests beautifulsoup4 tqdm pandas
-pip install python-multipart aiofiles docx2txt PyPDF2 pdfplumber openpyxl lxml
-pip install python-magic
+# Install core dependencies that don't conflict
+pip install --no-cache-dir fastapi uvicorn requests beautifulsoup4 tqdm
+pip install --no-cache-dir python-multipart aiofiles
+pip install --no-cache-dir docx2txt PyPDF2 pdfplumber openpyxl
+pip install --no-cache-dir pandas lxml python-magic
 
-# 3. Install readability-lxml with dependencies
-pip install chardet cssselect lxml
-pip install readability-lxml
+# Install readability-lxml
+pip install --no-cache-dir chardet cssselect
+pip install --no-cache-dir readability-lxml
 
-# 4. Install PyTorch CPU version
+# Install PyTorch CPU version
 echo "🧠 Installing PyTorch (CPU version)..."
-pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
+pip install --no-cache-dir torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu
 
-# 5. Install ML dependencies in correct order
-pip install scikit-learn
-pip install numba
-pip install transformers
-pip install sentence-transformers
-pip install tiktoken
+# Install scikit-learn BEFORE numba to avoid conflicts
+pip install --no-cache-dir scikit-learn
 
-# 6. Install ChromaDB and related packages
-pip install chromadb
-pip install langchain-text-splitters
-pip install langchain-core
+# Now install numba with compatible version
+pip install --no-cache-dir "numba==0.57.0"
 
-# 7. Install NLP tools
-pip install nltk
-pip install spacy
-pip install umap-learn
+# Install transformers and related ML packages
+pip install --no-cache-dir transformers
+pip install --no-cache-dir sentence-transformers
+pip install --no-cache-dir tiktoken
+
+# Install ChromaDB and related
+pip install --no-cache-dir chromadb
+pip install --no-cache-dir langchain-text-splitters
+pip install --no-cache-dir --force-reinstall --no-deps langchain-core
+
+# Install NLP tools
+pip install --no-cache-dir nltk
+pip install --no-cache-dir spacy
+pip install --no-cache-dir umap-learn
 
 # Download spacy model
 echo "🌐 Downloading spaCy language model..."
@@ -214,6 +219,12 @@ try:
 except ImportError as e:
     print(f'❌ NumPy: MISSING - {e}')
     test_failed = True
+
+try:
+    import numba
+    print(f'✅ Numba: OK (version {numba.__version__})')
+except ImportError as e:
+    print(f'⚠️ Numba: MISSING - {e} (non-critical)')
 
 if test_failed:
     print('\\n⚠️ Some dependencies are missing. Attempting to fix...')
@@ -329,8 +340,8 @@ else
     echo "✅ Falcon model already exists"
 fi
 
-# Create ENHANCED Python server with Vector Embeddings and Semantic Search
-echo "🔧 Creating ENHANCED backend server with Vector Embeddings..."
+# Create ENHANCED Python server with FIXED response lengths
+echo "🔧 Creating ENHANCED backend server with proper response lengths..."
 cat > "$BACKEND_DIR/server.py" << 'PYEOF'
 import os, json, requests, time, uuid, shutil, re, subprocess, asyncio
 from pathlib import Path
@@ -412,8 +423,570 @@ def detect_gpu():
                     "has_gpu": True,
                     "gpu_name": gpu_name.strip(),
                     "vram_gb": vram_gb,
-                    "recommended_layers": min(35, max(10, vram_gb * 2))  # FIX: Reduced layers for stability
-                })
+                    "recommended_layers": min(35, max(10, vram_gb * 2))
+                }
+
+        async function refreshDocuments() {
+            try {
+                const response = await fetch('/documents');
+                const data = await response.json();
+                const documentsList = document.getElementById('documentsList');
+
+                if (data.documents && data.documents.length > 0) {
+                    documentsList.innerHTML = data.documents.map(doc => `
+                        <div class="document-item">
+                            <div class="document-info">
+                                <div class="document-title">${doc.title}</div>
+                                <div class="document-meta">${doc.file_type} • ${formatFileSize(doc.size)} • ${formatDate(doc.upload_date)}</div>
+                            </div>
+                            <button class="delete-btn" onclick="deleteDocument('${doc.id}', '${doc.title.replace(/'/g, "\\'")}')">×</button>
+                        </div>
+                    `).join('');
+                } else {
+                    documentsList.innerHTML = '<div class="no-documents">No documents uploaded</div>';
+                }
+            } catch (error) {
+                console.error('Failed to load documents:', error);
+            }
+        }
+
+        async function deleteDocument(documentId, documentTitle) {
+            if (!confirm(`Delete "${documentTitle}"?`)) return;
+
+            try {
+                const response = await fetch(`/documents/${documentId}`, { method: 'DELETE' });
+                if (response.ok) {
+                    addMessage(`🗑️ Deleted: ${documentTitle} (including vector embeddings)`, false, false, null, true);
+                    refreshDocuments();
+                    updateVectorStats();
+                    checkStatus();
+                }
+            } catch (error) {
+                addMessage(`❌ Delete error: ${error.message}`, false, true);
+            }
+        }
+
+        async function updateVectorStats() {
+            try {
+                const response = await fetch('/vector-stats');
+                const stats = await response.json();
+                const vectorStatsDiv = document.getElementById('vectorStats');
+
+                if (stats.initialized) {
+                    vectorStatsDiv.style.display = 'block';
+                    document.getElementById('vectorStatus').textContent = 'Online';
+                    document.getElementById('vectorChunks').textContent = stats.total_chunks || 0;
+                    document.getElementById('vectorModel').textContent = stats.model_name || 'Unknown';
+                } else {
+                    vectorStatsDiv.style.display = 'none';
+                }
+            } catch (error) {
+                document.getElementById('vectorStats').style.display = 'none';
+            }
+        }
+
+        async function reindexVectors() {
+            if (!confirm('Reindex all documents in vector database? This may take a while.')) return;
+
+            try {
+                addMessage('🧠 Starting vector reindexing...', false, false, null, true);
+                const response = await fetch('/reindex-vectors', { method: 'POST' });
+                const result = await response.json();
+
+                if (result.success) {
+                    addMessage(`✅ ${result.message}`, false, false, null, true);
+                } else {
+                    addMessage(`❌ Reindexing failed: ${result.message}`, false, true);
+                }
+                updateVectorStats();
+            } catch (error) {
+                addMessage(`❌ Reindexing error: ${error.message}`, false, true);
+            }
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes === 0) return '0 B';
+            const k = 1024;
+            const sizes = ['B', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateString) {
+            try {
+                const date = new Date(dateString);
+                return date.toLocaleDateString();
+            } catch {
+                return 'Unknown';
+            }
+        }
+
+        async function testConnection() {
+            addMessage('🔧 Testing enhanced system connections...', false, false, null, true);
+
+            try {
+                const models = ['llama', 'falcon'];
+                for (const model of models) {
+                    try {
+                        const response = await fetch('/chat', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                message: 'Say exactly: SUCCESS TEST',
+                                model: model,
+                                response_length: 'short',
+                                use_documents: false,
+                                use_vector_search: false,
+                                session_id: 'test-session'
+                            })
+                        });
+
+                        const data = await response.json();
+                        const result = data.reply || 'No response';
+                        const status = result.includes('SUCCESS') ? '✅' : '⚠️';
+                        addMessage(`${status} ${model.toUpperCase()}: ${result}`, false, false, null, true);
+
+                    } catch (error) {
+                        addMessage(`❌ ${model.toUpperCase()}: ${error.message}`, false, true);
+                    }
+                }
+            } catch (error) {
+                addMessage(`❌ Test failed: ${error.message}`, false, true);
+            }
+        }
+
+        async function checkStatus() {
+            try {
+                const response = await fetch('/health');
+                const data = await response.json();
+
+                let statusText = '';
+                const llamaStatus = data.models.llama === 'online' ? '✅' : '❌';
+                const falconStatus = data.models.falcon === 'online' ? '✅' : '❌';
+
+                statusText = `${llamaStatus} LLaMA | ${falconStatus} Falcon | 📄 ${data.documents.count} docs`;
+
+                if (data.vector_search && data.vector_search.initialized) {
+                    statusText += ` | 🧠 ${data.vector_search.total_chunks || 0} chunks`;
+                }
+
+                if (data.gpu_info && data.gpu_info.has_gpu) {
+                    statusText += ` | 🎮 ${data.gpu_info.gpu_name}`;
+                }
+
+                if (data.version) {
+                    statusText += ` | v${data.version}`;
+                }
+
+                document.getElementById('status').textContent = statusText;
+
+                // Update feature status
+                const features = [];
+                if (data.features) {
+                    if (data.features.readability) {
+                        features.push('<div class="feature-item"><span class="status-indicator status-online"></span>URL Ingestion</div>');
+                    } else {
+                        features.push('<div class="feature-item"><span class="status-indicator status-offline"></span>URL Ingestion</div>');
+                    }
+
+                    if (data.features.vector_search) {
+                        features.push('<div class="feature-item"><span class="status-indicator status-online"></span>Vector Search</div>');
+                    } else {
+                        features.push('<div class="feature-item"><span class="status-indicator status-offline"></span>Vector Search</div>');
+                    }
+
+                    if (data.features.nltk) {
+                        features.push('<div class="feature-item"><span class="status-indicator status-online"></span>NLTK</div>');
+                    }
+
+                    if (data.features.spacy) {
+                        features.push('<div class="feature-item"><span class="status-indicator status-online"></span>spaCy</div>');
+                    }
+                }
+
+                document.getElementById('featureStatus').innerHTML = features.join('');
+
+                // Update vector stats
+                updateVectorStats();
+
+            } catch (error) {
+                document.getElementById('status').textContent = 'Status check failed';
+                console.error('Status check error:', error);
+            }
+        }
+
+        function clearChat() {
+            if (confirm('Clear chat history?')) {
+                document.getElementById('chatArea').innerHTML = `
+                    <div class="message bot">
+                        <div class="message-content">🧠 Chat cleared! Ready to help with enhanced semantic understanding.</div>
+                    </div>
+                `;
+                // Reset session ID when clearing chat
+                sessionId = 'session_' + Date.now();
+            }
+        }
+
+        // Auto-resize textarea
+        const messageInput = document.getElementById('messageInput');
+        messageInput.addEventListener('input', function() {
+            this.style.height = 'auto';
+            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
+        });
+
+        // Enter key support
+        messageInput.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Initialize
+        window.addEventListener('load', function() {
+            checkStatus();
+            refreshDocuments();
+            updateVectorStats();
+            messageInput.focus();
+            console.log('✅ HarpoonAI Enhanced Frontend loaded with Vector Search - FIXED VERSION');
+        });
+
+        // Auto-refresh status every 30 seconds
+        setInterval(checkStatus, 30000);
+    </script>
+</body>
+</html>
+HTMLEOF
+
+# Create enhanced startup script with better parameters
+echo "🚀 Creating enhanced startup script..."
+cat > "$PROJECT_DIR/start_harpoonai.sh" << 'STARTEOF'
+#!/bin/bash
+
+PROJECT_DIR="$HOME/offline_ai_chat"
+cd "$PROJECT_DIR"
+
+echo "🚀 Starting HarpoonAI Enhanced System with Vector Embeddings..."
+
+# Check if ports are in use
+check_port() {
+    netstat -tuln 2>/dev/null | grep ":$1 " > /dev/null 2>&1
+    return $?
+}
+
+# Start service in background
+start_service() {
+    local name="$1"
+    local command="$2"
+    local port="$3"
+    local log_file="$4"
+
+    if check_port "$port"; then
+        echo "⚠️ Port $port already in use. $name may be running."
+        return 1
+    fi
+
+    echo "🚀 Starting $name on port $port..."
+    nohup $command > "$log_file" 2>&1 &
+    local pid=$!
+    echo "$pid" > "$PROJECT_DIR/${name,,}_pid.txt"
+
+    sleep 3
+    if kill -0 "$pid" 2>/dev/null; then
+        echo "✅ $name started (PID: $pid)"
+        return 0
+    else
+        echo "❌ Failed to start $name"
+        return 1
+    fi
+}
+
+# Wait for service
+wait_for_service() {
+    local name="$1"
+    local url="$2"
+    local max_attempts=30
+    local attempt=1
+
+    echo "⏳ Waiting for $name..."
+    while [ $attempt -le $max_attempts ]; do
+        if curl -s "$url" > /dev/null 2>&1; then
+            echo "✅ $name ready!"
+            return 0
+        fi
+        sleep 2
+        attempt=$((attempt + 1))
+    done
+    echo "❌ $name failed to start"
+    return 1
+}
+
+# Check GPU and display enhanced info
+if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
+    GPU_INFO=$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)
+    if [ ! -z "$GPU_INFO" ]; then
+        echo "🎮 GPU: $GPU_INFO"
+        echo "🧠 Vector embeddings will use GPU acceleration when available"
+    fi
+else
+    echo "💻 CPU-only mode - Vector embeddings will use CPU"
+fi
+
+# Find server binary
+LLAMA_SERVER_BIN=""
+for bin in "$PROJECT_DIR/llama.cpp/build/bin/llama-server" "$PROJECT_DIR/llama.cpp/build/llama-server" "$PROJECT_DIR/llama.cpp/build/bin/server" "$PROJECT_DIR/llama.cpp/build/server"; do
+  if [ -x "$bin" ]; then
+    LLAMA_SERVER_BIN="$bin"
+    break
+  fi
+done
+
+if [ -z "$LLAMA_SERVER_BIN" ]; then
+    echo "❌ LLaMA server binary not found"
+    exit 1
+fi
+
+# Model paths
+LLAMA_MODEL="$PROJECT_DIR/models/llama3/luna-ai-llama2-uncensored.Q4_K_M.gguf"
+FALCON_MODEL="$PROJECT_DIR/models/Falcon/ehartford-WizardLM-Uncensored-Falcon-7b-Q2_K.gguf"
+
+# Check models
+if [ ! -f "$LLAMA_MODEL" ]; then
+    echo "❌ LLaMA model not found: $LLAMA_MODEL"
+    exit 1
+fi
+
+if [ ! -f "$FALCON_MODEL" ]; then
+    echo "❌ Falcon model not found: $FALCON_MODEL"
+    exit 1
+fi
+
+# GPU parameters - optimized for stability
+GPU_PARAMS_LLAMA=""
+GPU_PARAMS_FALCON=""
+if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
+    echo "🚀 GPU detected, enabling acceleration..."
+    GPU_PARAMS_LLAMA="-ngl 25"
+    GPU_PARAMS_FALCON="-ngl 20"
+fi
+
+# Start LLaMA server with optimized parameters for full responses
+LLAMA_CMD="$LLAMA_SERVER_BIN -m $LLAMA_MODEL -c 4096 -b 512 --host 0.0.0.0 --port 8080 -t $(nproc) $GPU_PARAMS_LLAMA --mlock --n-predict -1"
+start_service "LLaMA" "$LLAMA_CMD" "8080" "$PROJECT_DIR/llama_server.log"
+
+# Start Falcon server
+FALCON_CMD="$LLAMA_SERVER_BIN -m $FALCON_MODEL -c 2048 -b 256 --host 0.0.0.0 --port 8081 -t $(nproc) $GPU_PARAMS_FALCON --mlock --n-predict -1"
+start_service "Falcon" "$FALCON_CMD" "8081" "$PROJECT_DIR/falcon_server.log"
+
+# Wait for models
+wait_for_service "LLaMA" "http://localhost:8080/health"
+wait_for_service "Falcon" "http://localhost:8081/health"
+
+# Activate Python environment
+if [ -f "$PROJECT_DIR/venv/bin/activate" ]; then
+    source "$PROJECT_DIR/venv/bin/activate"
+    echo "✅ Python environment activated"
+fi
+
+# Set environment variables for enhanced features
+export PROJECT_DIR="$PROJECT_DIR"
+export TOKENIZERS_PARALLELISM=false
+export CUDA_VISIBLE_DEVICES=0
+export PYTHONUNBUFFERED=1
+
+# Start enhanced backend with vector capabilities
+echo "🧠 Starting Enhanced Backend with Vector Embeddings..."
+cd "$PROJECT_DIR/backend"
+start_service "Backend" "uvicorn server:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 300 --limit-concurrency 100" "8000" "$PROJECT_DIR/backend_server.log"
+
+wait_for_service "Backend" "http://localhost:8000/health"
+
+echo ""
+echo "🎉 HarpoonAI Enhanced System Started Successfully!"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🌐 Web Interface: http://localhost:8000"
+echo "🤖 LLaMA Server: http://localhost:8080"
+echo "🦅 Falcon Server: http://localhost:8081"
+echo ""
+echo "🧠 ENHANCED FEATURES:"
+echo "   ✅ Vector embeddings with sentence-transformers (all-MiniLM-L6-v2)"
+echo "   ✅ ChromaDB vector database for semantic search"
+echo "   ✅ Intelligent document chunking with semantic awareness"
+echo "   ✅ Hybrid search (semantic + keyword matching)"
+echo "   ✅ FIXED: Unlimited responses now work properly!"
+echo "   ✅ FIXED: No numba conflicts!"
+echo "   ✅ GPU acceleration for both LLM and ML workloads"
+echo ""
+echo "📁 Log Files:"
+echo "   LLaMA:   $PROJECT_DIR/llama_server.log"
+echo "   Falcon:  $PROJECT_DIR/falcon_server.log"
+echo "   Backend: $PROJECT_DIR/backend_server.log"
+echo ""
+echo "📊 Data Directories:"
+echo "   Documents: $PROJECT_DIR/documents"
+echo "   Vector DB: $PROJECT_DIR/vector_db"
+echo "   Embeddings: $PROJECT_DIR/embeddings"
+echo ""
+echo "🛑 To stop: $PROJECT_DIR/stop_harpoonai.sh"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+STARTEOF
+
+# Create enhanced stop script
+echo "🛑 Creating enhanced stop script..."
+cat > "$PROJECT_DIR/stop_harpoonai.sh" << 'STOPEOF'
+#!/bin/bash
+
+PROJECT_DIR="$HOME/offline_ai_chat"
+cd "$PROJECT_DIR"
+
+echo "🛑 Stopping HarpoonAI Enhanced System..."
+
+stop_service() {
+    local name="$1"
+    local pid_file="$PROJECT_DIR/${name,,}_pid.txt"
+
+    if [ -f "$pid_file" ]; then
+        local pid=$(cat "$pid_file")
+        if kill -0 "$pid" 2>/dev/null; then
+            echo "🛑 Stopping $name (PID: $pid)..."
+            kill "$pid"
+            sleep 2
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "   Force killing $name..."
+                kill -9 "$pid"
+            fi
+            echo "✅ $name stopped"
+        fi
+        rm -f "$pid_file"
+    fi
+}
+
+stop_service "Backend"
+stop_service "Falcon"
+stop_service "LLaMA"
+
+# Kill any remaining processes on ports
+for port in 8000 8080 8081; do
+    fuser -k ${port}/tcp 2>/dev/null || true
+done
+
+echo "✅ HarpoonAI Enhanced System stopped"
+echo "📊 Vector database and documents preserved in $PROJECT_DIR"
+STOPEOF
+
+chmod +x "$PROJECT_DIR/start_harpoonai.sh"
+chmod +x "$PROJECT_DIR/stop_harpoonai.sh"
+
+# Create a system info script for troubleshooting
+echo "📊 Creating system info script..."
+cat > "$PROJECT_DIR/system_info.sh" << 'INFOEOF'
+#!/bin/bash
+
+PROJECT_DIR="$HOME/offline_ai_chat"
+
+echo "🔍 HarpoonAI Enhanced System Information"
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+
+echo "📁 Project Directory: $PROJECT_DIR"
+echo "🐍 Python Version: $(python3 --version 2>/dev/null || echo 'Not found')"
+
+# Check GPU
+if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
+    echo "🎮 GPU Info:"
+    nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free --format=csv,noheader,nounits | head -1
+    echo "🔧 CUDA Version: $(nvcc --version 2>/dev/null | grep release | sed 's/.*release \([0-9.]*\).*/\1/' || echo 'Not found')"
+else
+    echo "💻 GPU: Not available (CPU only)"
+fi
+
+# Check Python packages
+echo ""
+echo "📦 Python Packages:"
+source "$PROJECT_DIR/venv/bin/activate" 2>/dev/null || echo "⚠️ Virtual environment not found"
+echo "  NumPy: $(pip show numpy 2>/dev/null | grep Version || echo 'Not installed')"
+echo "  Numba: $(pip show numba 2>/dev/null | grep Version || echo 'Not installed')"
+echo "  Torch: $(pip show torch 2>/dev/null | grep Version || echo 'Not installed')"
+echo "  Sentence-transformers: $(pip show sentence-transformers 2>/dev/null | grep Version || echo 'Not installed')"
+echo "  ChromaDB: $(pip show chromadb 2>/dev/null | grep Version || echo 'Not installed')"
+
+# Check models
+echo ""
+echo "🤖 Models:"
+[ -f "$PROJECT_DIR/models/llama3/luna-ai-llama2-uncensored.Q4_K_M.gguf" ] && echo "✅ LLaMA model" || echo "❌ LLaMA model missing"
+[ -f "$PROJECT_DIR/models/Falcon/ehartford-WizardLM-Uncensored-Falcon-7b-Q2_K.gguf" ] && echo "✅ Falcon model" || echo "❌ Falcon model missing"
+
+# Check vector database
+echo ""
+echo "🧠 Vector Database:"
+if [ -d "$PROJECT_DIR/vector_db" ]; then
+    echo "✅ ChromaDB directory exists"
+    echo "📊 Size: $(du -sh $PROJECT_DIR/vector_db 2>/dev/null | cut -f1 || echo 'Unknown')"
+else
+    echo "❌ ChromaDB directory not found"
+fi
+
+# Check documents
+echo ""
+echo "📄 Documents:"
+if [ -f "$PROJECT_DIR/documents/index.json" ]; then
+    DOC_COUNT=$(python3 -c "import json; print(len(json.load(open('$PROJECT_DIR/documents/index.json'))['documents']))" 2>/dev/null || echo "Unknown")
+    echo "✅ Document index exists ($DOC_COUNT documents)"
+else
+    echo "❌ Document index not found"
+fi
+
+# Check services
+echo ""
+echo "🔌 Service Status:"
+curl -s http://localhost:8000/health > /dev/null 2>&1 && echo "✅ Backend API" || echo "❌ Backend API"
+curl -s http://localhost:8080/health > /dev/null 2>&1 && echo "✅ LLaMA Server" || echo "❌ LLaMA Server"
+curl -s http://localhost:8081/health > /dev/null 2>&1 && echo "✅ Falcon Server" || echo "❌ Falcon Server"
+
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+INFOEOF
+
+chmod +x "$PROJECT_DIR/system_info.sh"
+
+echo ""
+echo "✅ ENHANCED HarpoonAI Installation completed - FULLY FIXED!"
+echo ""
+echo "🧠 FIXED ISSUES:"
+echo "   ✅ No more numba conflicts - installed with correct numpy version"
+echo "   ✅ Full unlimited responses - removed token limit on unlimited setting"
+echo "   ✅ Document context working - improved search and retrieval"
+echo "   ✅ No timeouts - increased timeout to 300 seconds"
+echo "   ✅ Proper dependency order - no more installation conflicts"
+echo ""
+echo "🚀 GPU Status: $([ "$CUDA_AVAILABLE" = true ] && echo "ENABLED" || echo "DISABLED")"
+echo "📁 Project directory: $PROJECT_DIR"
+echo ""
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+echo "🎉 To start the ENHANCED system:"
+echo "   $PROJECT_DIR/start_harpoonai.sh"
+echo ""
+echo "🛑 To stop all services:"
+echo "   $PROJECT_DIR/stop_harpoonai.sh"
+echo ""
+echo "📊 To check system status:"
+echo "   $PROJECT_DIR/system_info.sh"
+echo ""
+echo "🌐 Once started, access: http://localhost:8000"
+echo ""
+echo "📝 RESPONSE LENGTH SETTINGS:"
+echo "   • Short: 256 tokens"
+echo "   • Medium: 512 tokens"
+echo "   • Long: 1024 tokens"
+echo "   • Unlimited: Actually unlimited (no cap)"
+echo ""
+echo "🧠 ENHANCED FEATURES:"
+echo "   • Vector embeddings for semantic understanding"
+echo "   • ChromaDB for persistent vector storage"
+echo "   • Hybrid search (semantic + keyword)"
+echo "   • Smart document chunking"
+echo "   • GPU acceleration when available"
+echo ""
+echo "✨ The system will automatically download sentence-transformer models on first use."
+echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
     except:
         pass
     return gpu_info
@@ -436,13 +1009,13 @@ FALCON_API = "http://0.0.0.0:8081/completion"
 DOCS_INDEX_FILE = f"{DOCS_DIR}/index.json"
 CONVERSATIONS_FILE = f"{SELF_LEARN_DIR}/conversation_memory.json"
 
-app = FastAPI(title="Harpoon AI Enhanced", version="3.0.2-FIXED")
+app = FastAPI(title="Harpoon AI Enhanced", version="3.0.3-FIXED")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
 
 class DocumentChunker:
     """Enhanced document chunking with semantic awareness"""
 
-    def __init__(self, chunk_size=400, chunk_overlap=50):  # FIX: Reduced chunk size
+    def __init__(self, chunk_size=500, chunk_overlap=100):
         self.chunk_size = chunk_size
         self.chunk_overlap = chunk_overlap
         try:
@@ -464,7 +1037,7 @@ class DocumentChunker:
         """Enhanced chunking with semantic awareness"""
         chunks = []
         
-        # FIX: Handle empty or very short text
+        # Handle empty or very short text
         if not text or len(text.strip()) < 10:
             return []
 
@@ -515,7 +1088,7 @@ class DocumentChunker:
         """Get sentences from text with multiple fallbacks"""
         try:
             if SPACY_AVAILABLE and nlp:
-                doc = nlp(text[:1000000])  # Limit text size
+                doc = nlp(text[:1000000])
                 sentences = [sent.text.strip() for sent in doc.sents if sent.text.strip()]
                 if sentences:
                     return sentences
@@ -598,7 +1171,6 @@ class VectorSearchEngine:
             return False
 
         try:
-            # FIX: Better error handling for content
             content = doc_info.get("content", "")
             if not content or len(content.strip()) < 10:
                 logger.warning(f"Document '{doc_info.get('title', 'Unknown')}' has no content to embed")
@@ -714,7 +1286,6 @@ class VectorSearchEngine:
             return False
 
         try:
-            # Query for chunks belonging to this document
             results = self.collection.get(
                 where={"document_id": document_id},
                 include=["ids"]
@@ -749,7 +1320,7 @@ class VectorSearchEngine:
 class EnhancedConversationMemory:
     """Enhanced conversation memory with better context management"""
 
-    def __init__(self, max_history=50, context_window=4):  # FIX: Reduced for performance
+    def __init__(self, max_history=100, context_window=6):
         self.conversations = {}
         self.max_history = max_history
         self.context_window = context_window
@@ -784,9 +1355,9 @@ class EnhancedConversationMemory:
         for msg in recent_messages:
             role = "Human" if msg["role"] == "user" else "Assistant"
             content = msg['content']
-            # FIX: Reduced context size for performance
-            if len(content) > 300:
-                content = content[:300] + "..."
+            # Keep reasonable context size
+            if len(content) > 500:
+                content = content[:500] + "..."
             context_parts.append(f"{role}: {content}")
 
         return "\n".join(context_parts) + "\n" if context_parts else ""
@@ -835,7 +1406,7 @@ def load_document_index():
                 return json.load(f)
         except:
             pass
-    return {"documents": [], "version": "3.0.2-FIXED", "vector_enabled": VECTOR_SEARCH_AVAILABLE}
+    return {"documents": [], "version": "3.0.3-FIXED", "vector_enabled": VECTOR_SEARCH_AVAILABLE}
 
 def save_document_index(index):
     os.makedirs(os.path.dirname(DOCS_INDEX_FILE), exist_ok=True)
@@ -878,7 +1449,6 @@ def improved_keyword_search(query, limit=3):
     results = []
     query_lower = query.lower().strip()
 
-    # FIX: Better tokenization
     query_words = [word for word in re.findall(r'\b\w+\b', query_lower) if len(word) > 2]
 
     for doc in index["documents"]:
@@ -933,7 +1503,7 @@ def get_enhanced_document_context(query, use_vector=True):
 
     context = "\n=== RELEVANT DOCUMENTS ===\n"
     total_length = 0
-    max_context_length = 2000  # FIX: Reduced for performance
+    max_context_length = 3000
 
     for doc in relevant_docs:
         search_type = doc.get("search_type", "unknown")
@@ -945,13 +1515,13 @@ def get_enhanced_document_context(query, use_vector=True):
         # Get content
         content = doc.get("content", "")
 
-        # FIX: Better excerpt extraction
+        # Extract relevant excerpt
         if search_type == "keyword":
-            content = get_relevant_excerpt(content, query, max_length=600)
+            content = get_relevant_excerpt(content, query, max_length=800)
         else:
             # For vector search, content is already a relevant chunk
-            if len(content) > 600:
-                content = content[:600] + "..."
+            if len(content) > 800:
+                content = content[:800] + "..."
 
         doc_context += content + "\n"
 
@@ -964,7 +1534,7 @@ def get_enhanced_document_context(query, use_vector=True):
     context += "=== END DOCUMENTS ===\n"
     return context
 
-def get_relevant_excerpt(content, query, max_length=600):
+def get_relevant_excerpt(content, query, max_length=800):
     """Extract relevant excerpt from content"""
     if not content:
         return ""
@@ -1105,7 +1675,7 @@ async def health_check():
             "nltk": NLTK_AVAILABLE,
             "spacy": SPACY_AVAILABLE
         },
-        "version": "3.0.2-FIXED"
+        "version": "3.0.3-FIXED"
     }
 
 @app.post("/chat")
@@ -1128,8 +1698,8 @@ async def chat_endpoint(request: Request):
         if not check_model_server(api):
             return {"reply": f"❌ {model_name} server not responding", "context_used": False}
 
-        # FIX: Reduced context sizes for performance
-        conversation_context = conv_memory.get_conversation_context(session_id, max_exchanges=2)
+        # Get context
+        conversation_context = conv_memory.get_conversation_context(session_id, max_exchanges=3)
         document_context = ""
         context_used = False
         search_type = "none"
@@ -1140,40 +1710,49 @@ async def chat_endpoint(request: Request):
             if context_used:
                 search_type = "hybrid" if vector_search.initialized and use_vector_search else "keyword"
 
-        # Enhanced prompt structure
-        enhanced_prompt = "System: You are a helpful AI assistant."
+        # Build enhanced prompt
+        enhanced_prompt = "System: You are a helpful AI assistant. Provide detailed and complete answers."
         
         if document_context:
-            enhanced_prompt += f" Use the following documents to answer:\n{document_context}"
+            enhanced_prompt += f"\n\nUse the following documents to answer the question:\n{document_context}"
         
         enhanced_prompt += "\n\n"
 
         if conversation_context:
             enhanced_prompt += conversation_context + "\n"
         
-        enhanced_prompt += f"Human: {prompt}\nAssistant:"
+        enhanced_prompt += f"Human: {prompt}\nAssistant: I'll provide a complete and detailed answer.\n\n"
 
-        # Set response length
-        length_mapping = {"short": 150, "medium": 400, "long": 800, "unlimited": 2000}  # FIX: Added limit
-        n_predict = length_mapping.get(response_length, 2000)
+        # FIX 2: PROPER RESPONSE LENGTH SETTINGS
+        # Map response lengths to actual token counts
+        length_mapping = {
+            "short": 256,
+            "medium": 512,
+            "long": 1024,
+            "unlimited": -1  # Actually unlimited
+        }
+        n_predict = length_mapping.get(response_length, -1)
 
-        # FIX: Adjusted parameters for stability and performance
+        # FIX 3: OPTIMIZED PARAMETERS FOR COMPLETE RESPONSES
         payload = {
             "prompt": enhanced_prompt,
             "n_predict": n_predict,
-            "temperature": 0.5,
-            "stop": ["Human:", "User:", "System:", "</s>", "\n\n\n"],
+            "temperature": 0.7,
+            "stop": ["Human:", "User:", "\n\nHuman:", "\n\nUser:"],  # Removed aggressive stops
             "stream": False,
             "repeat_penalty": 1.1,
             "top_k": 40,
-            "top_p": 0.9,
-            "frequency_penalty": 0.1,
-            "presence_penalty": 0.1
+            "top_p": 0.95,
+            "frequency_penalty": 0.0,
+            "presence_penalty": 0.0,
+            "mirostat": 0,
+            "mirostat_tau": 5.0,
+            "mirostat_eta": 0.1
         }
 
-        # FIX: Increased timeout and better error handling
-        logger.info(f"Sending request to {model_name} model...")
-        response = requests.post(api, json=payload, timeout=180)
+        logger.info(f"Sending request to {model_name} with n_predict={n_predict}")
+        
+        response = requests.post(api, json=payload, timeout=300)  # Increased timeout
         
         if response.status_code != 200:
             logger.error(f"Model server error: HTTP {response.status_code}")
@@ -1182,10 +1761,9 @@ async def chat_endpoint(request: Request):
         response_data = response.json()
         reply = response_data.get("content", "").strip()
 
-        # Clean response
-        patterns = [r'^(Human|User|Assistant):\s*', r'\n(Human|User|Assistant):\s*.*$']
-        for pattern in patterns:
-            reply = re.sub(pattern, '', reply, flags=re.MULTILINE | re.IGNORECASE)
+        # Clean response (minimal cleaning to preserve full response)
+        reply = re.sub(r'^(Assistant:\s*)+', '', reply, flags=re.IGNORECASE)
+        reply = re.sub(r'\n(Human|User):\s*.*$', '', reply, flags=re.MULTILINE | re.IGNORECASE)
         reply = reply.strip()
 
         if not reply:
@@ -1332,7 +1910,7 @@ async def ingest_url(request: Request):
             'Upgrade-Insecure-Requests': '1'
         }
 
-        # FIX: Better retry logic
+        # Better retry logic
         max_retries = 3
         response = None
         for attempt in range(max_retries):
@@ -1349,7 +1927,7 @@ async def ingest_url(request: Request):
         if 'text/html' not in content_type and 'application/xhtml' not in content_type:
             return {"success": False, "message": f"Unsupported content type: {content_type}"}
 
-        # FIX: Better content extraction
+        # Better content extraction
         try:
             doc = Document(response.text)
             title = doc.title() or f"Web Content from {parsed.netloc}"
@@ -1379,8 +1957,7 @@ async def ingest_url(request: Request):
 
             clean_text = soup.get_text(separator='\n', strip=True)
 
-        # FIX: Reduced max length for performance
-        max_length = 15000
+        max_length = 20000
         if len(clean_text) > max_length:
             clean_text = clean_text[:max_length] + "\n... (content truncated)"
 
@@ -1485,11 +2062,11 @@ print(f"🔍 Magic: {'AVAILABLE' if MAGIC_AVAILABLE else 'MISSING'}")
 print(f"🧠 Vector Search: {'AVAILABLE' if VECTOR_SEARCH_AVAILABLE else 'MISSING'}")
 print(f"📝 NLTK: {'AVAILABLE' if NLTK_AVAILABLE else 'MISSING'}")
 print(f"🔤 spaCy: {'AVAILABLE' if SPACY_AVAILABLE else 'MISSING'}")
-print(f"✅ Enhanced features: Vector embeddings, semantic search, improved chunking")
+print(f"✅ Enhanced features: Vector embeddings, semantic search, FIXED response lengths")
 print(f"📁 Project Dir: {PROJECT_DIR}")
 PYEOF
 
-# Copy the HTML file (keeping the same as before)
+# HTML file remains the same
 echo "🌐 Creating ENHANCED web interface..."
 cat > "$FRONTEND_DIR/index.html" << 'HTMLEOF'
 <!DOCTYPE html>
@@ -1625,10 +2202,10 @@ cat > "$FRONTEND_DIR/index.html" << 'HTMLEOF'
                 <div class="control-group">
                     <label class="control-label">Response Length</label>
                     <select id="responseLengthSelect" class="response-select">
-                        <option value="short">Short</option>
-                        <option value="medium" selected>Medium</option>
-                        <option value="long">Long</option>
-                        <option value="unlimited">Unlimited</option>
+                        <option value="short">Short (256 tokens)</option>
+                        <option value="medium">Medium (512 tokens)</option>
+                        <option value="long">Long (1024 tokens)</option>
+                        <option value="unlimited" selected>Unlimited</option>
                     </select>
                 </div>
                 <div class="control-group">
@@ -1686,7 +2263,7 @@ cat > "$FRONTEND_DIR/index.html" << 'HTMLEOF'
                                 <br>✅ ChromaDB vector database for intelligent search
                                 <br>✅ Improved document chunking with sentence-transformers
                                 <br>✅ Hybrid search combining semantic + keyword matching
-                                <br>✅ Enhanced conversation context management
+                                <br>✅ FIXED: Full unlimited responses now work properly!
                                 <br><br>Upload documents or ingest web content, then experience the power of semantic search!
                             </div>
                         </div>
@@ -2020,567 +2597,3 @@ cat > "$FRONTEND_DIR/index.html" << 'HTMLEOF'
                 showProgress('urlProgress', false);
             }
         }
-
-        async function refreshDocuments() {
-            try {
-                const response = await fetch('/documents');
-                const data = await response.json();
-                const documentsList = document.getElementById('documentsList');
-
-                if (data.documents && data.documents.length > 0) {
-                    documentsList.innerHTML = '<div class="no-documents">No documents uploaded</div>';
-                }
-            } catch (error) {
-                console.error('Failed to load documents:', error);
-            }
-        }
-
-        async function deleteDocument(documentId, documentTitle) {
-            if (!confirm(`Delete "${documentTitle}"?`)) return;
-
-            try {
-                const response = await fetch(`/documents/${documentId}`, { method: 'DELETE' });
-                if (response.ok) {
-                    addMessage(`🗑️ Deleted: ${documentTitle} (including vector embeddings)`, false, false, null, true);
-                    refreshDocuments();
-                    updateVectorStats();
-                    checkStatus();
-                }
-            } catch (error) {
-                addMessage(`❌ Delete error: ${error.message}`, false, true);
-            }
-        }
-
-        async function updateVectorStats() {
-            try {
-                const response = await fetch('/vector-stats');
-                const stats = await response.json();
-                const vectorStatsDiv = document.getElementById('vectorStats');
-
-                if (stats.initialized) {
-                    vectorStatsDiv.style.display = 'block';
-                    document.getElementById('vectorStatus').textContent = 'Online';
-                    document.getElementById('vectorChunks').textContent = stats.total_chunks || 0;
-                    document.getElementById('vectorModel').textContent = stats.model_name || 'Unknown';
-                } else {
-                    vectorStatsDiv.style.display = 'none';
-                }
-            } catch (error) {
-                document.getElementById('vectorStats').style.display = 'none';
-            }
-        }
-
-        async function reindexVectors() {
-            if (!confirm('Reindex all documents in vector database? This may take a while.')) return;
-
-            try {
-                addMessage('🧠 Starting vector reindexing...', false, false, null, true);
-                const response = await fetch('/reindex-vectors', { method: 'POST' });
-                const result = await response.json();
-
-                if (result.success) {
-                    addMessage(`✅ ${result.message}`, false, false, null, true);
-                } else {
-                    addMessage(`❌ Reindexing failed: ${result.message}`, false, true);
-                }
-                updateVectorStats();
-            } catch (error) {
-                addMessage(`❌ Reindexing error: ${error.message}`, false, true);
-            }
-        }
-
-        function formatFileSize(bytes) {
-            if (bytes === 0) return '0 B';
-            const k = 1024;
-            const sizes = ['B', 'KB', 'MB', 'GB'];
-            const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
-        }
-
-        function formatDate(dateString) {
-            try {
-                const date = new Date(dateString);
-                return date.toLocaleDateString();
-            } catch {
-                return 'Unknown';
-            }
-        }
-
-        async function testConnection() {
-            addMessage('🔧 Testing enhanced system connections...', false, false, null, true);
-
-            try {
-                const models = ['llama', 'falcon'];
-                for (const model of models) {
-                    try {
-                        const response = await fetch('/chat', {
-                            method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({
-                                message: 'Say exactly: SUCCESS TEST',
-                                model: model,
-                                response_length: 'short',
-                                use_documents: false,
-                                use_vector_search: false,
-                                session_id: 'test-session'
-                            })
-                        });
-
-                        const data = await response.json();
-                        const result = data.reply || 'No response';
-                        const status = result.includes('SUCCESS') ? '✅' : '⚠️';
-                        addMessage(`${status} ${model.toUpperCase()}: ${result}`, false, false, null, true);
-
-                    } catch (error) {
-                        addMessage(`❌ ${model.toUpperCase()}: ${error.message}`, false, true);
-                    }
-                }
-            } catch (error) {
-                addMessage(`❌ Test failed: ${error.message}`, false, true);
-            }
-        }
-
-        async function checkStatus() {
-            try {
-                const response = await fetch('/health');
-                const data = await response.json();
-
-                let statusText = '';
-                const llamaStatus = data.models.llama === 'online' ? '✅' : '❌';
-                const falconStatus = data.models.falcon === 'online' ? '✅' : '❌';
-
-                statusText = `${llamaStatus} LLaMA | ${falconStatus} Falcon | 📄 ${data.documents.count} docs`;
-
-                if (data.vector_search && data.vector_search.initialized) {
-                    statusText += ` | 🧠 ${data.vector_search.total_chunks || 0} chunks`;
-                }
-
-                if (data.gpu_info && data.gpu_info.has_gpu) {
-                    statusText += ` | 🎮 ${data.gpu_info.gpu_name}`;
-                }
-
-                if (data.version) {
-                    statusText += ` | v${data.version}`;
-                }
-
-                document.getElementById('status').textContent = statusText;
-
-                // Update feature status
-                const features = [];
-                if (data.features) {
-                    if (data.features.readability) {
-                        features.push('<div class="feature-item"><span class="status-indicator status-online"></span>URL Ingestion</div>');
-                    } else {
-                        features.push('<div class="feature-item"><span class="status-indicator status-offline"></span>URL Ingestion</div>');
-                    }
-
-                    if (data.features.vector_search) {
-                        features.push('<div class="feature-item"><span class="status-indicator status-online"></span>Vector Search</div>');
-                    } else {
-                        features.push('<div class="feature-item"><span class="status-indicator status-offline"></span>Vector Search</div>');
-                    }
-
-                    if (data.features.nltk) {
-                        features.push('<div class="feature-item"><span class="status-indicator status-online"></span>NLTK</div>');
-                    }
-
-                    if (data.features.spacy) {
-                        features.push('<div class="feature-item"><span class="status-indicator status-online"></span>spaCy</div>');
-                    }
-                }
-
-                document.getElementById('featureStatus').innerHTML = features.join('');
-
-                // Update vector stats
-                updateVectorStats();
-
-            } catch (error) {
-                document.getElementById('status').textContent = 'Status check failed';
-                console.error('Status check error:', error);
-            }
-        }
-
-        function clearChat() {
-            if (confirm('Clear chat history?')) {
-                document.getElementById('chatArea').innerHTML = `
-                    <div class="message bot">
-                        <div class="message-content">🧠 Chat cleared! Ready to help with enhanced semantic understanding.</div>
-                    </div>
-                `;
-                // Reset session ID when clearing chat
-                sessionId = 'session_' + Date.now();
-            }
-        }
-
-        // Auto-resize textarea
-        const messageInput = document.getElementById('messageInput');
-        messageInput.addEventListener('input', function() {
-            this.style.height = 'auto';
-            this.style.height = Math.min(this.scrollHeight, 120) + 'px';
-        });
-
-        // Enter key support
-        messageInput.addEventListener('keydown', function(e) {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
-
-        // Initialize
-        window.addEventListener('load', function() {
-            checkStatus();
-            refreshDocuments();
-            updateVectorStats();
-            messageInput.focus();
-            console.log('✅ HarpoonAI Enhanced Frontend loaded with Vector Search');
-        });
-
-        // Auto-refresh status every 30 seconds
-        setInterval(checkStatus, 30000);
-    </script>
-</body>
-</html>
-HTMLEOF
-
-# Create enhanced startup script with better error handling
-echo "🚀 Creating enhanced startup script..."
-cat > "$PROJECT_DIR/start_harpoonai.sh" << 'STARTEOF'
-#!/bin/bash
-
-PROJECT_DIR="$HOME/offline_ai_chat"
-cd "$PROJECT_DIR"
-
-echo "🚀 Starting HarpoonAI Enhanced System with Vector Embeddings..."
-
-# Check if ports are in use
-check_port() {
-    netstat -tuln 2>/dev/null | grep ":$1 " > /dev/null 2>&1
-    return $?
-}
-
-# Start service in background
-start_service() {
-    local name="$1"
-    local command="$2"
-    local port="$3"
-    local log_file="$4"
-
-    if check_port "$port"; then
-        echo "⚠️ Port $port already in use. $name may be running."
-        return 1
-    fi
-
-    echo "🚀 Starting $name on port $port..."
-    nohup $command > "$log_file" 2>&1 &
-    local pid=$!
-    echo "$pid" > "$PROJECT_DIR/${name,,}_pid.txt"
-
-    sleep 3
-    if kill -0 "$pid" 2>/dev/null; then
-        echo "✅ $name started (PID: $pid)"
-        return 0
-    else
-        echo "❌ Failed to start $name"
-        return 1
-    fi
-}
-
-# Wait for service
-wait_for_service() {
-    local name="$1"
-    local url="$2"
-    local max_attempts=30
-    local attempt=1
-
-    echo "⏳ Waiting for $name..."
-    while [ $attempt -le $max_attempts ]; do
-        if curl -s "$url" > /dev/null 2>&1; then
-            echo "✅ $name ready!"
-            return 0
-        fi
-        sleep 2
-        attempt=$((attempt + 1))
-    done
-    echo "❌ $name failed to start"
-    return 1
-}
-
-# Check GPU and display enhanced info
-if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
-    GPU_INFO=$(nvidia-smi --query-gpu=name,memory.total --format=csv,noheader,nounits 2>/dev/null | head -1)
-    if [ ! -z "$GPU_INFO" ]; then
-        echo "🎮 GPU: $GPU_INFO"
-        echo "🧠 Vector embeddings will use GPU acceleration when available"
-    fi
-else
-    echo "💻 CPU-only mode - Vector embeddings will use CPU"
-fi
-
-# Find server binary
-LLAMA_SERVER_BIN=""
-for bin in "$PROJECT_DIR/llama.cpp/build/bin/llama-server" "$PROJECT_DIR/llama.cpp/build/llama-server" "$PROJECT_DIR/llama.cpp/build/bin/server" "$PROJECT_DIR/llama.cpp/build/server"; do
-  if [ -x "$bin" ]; then
-    LLAMA_SERVER_BIN="$bin"
-    break
-  fi
-done
-
-if [ -z "$LLAMA_SERVER_BIN" ]; then
-    echo "❌ LLaMA server binary not found"
-    exit 1
-fi
-
-# Model paths
-LLAMA_MODEL="$PROJECT_DIR/models/llama3/luna-ai-llama2-uncensored.Q4_K_M.gguf"
-FALCON_MODEL="$PROJECT_DIR/models/Falcon/ehartford-WizardLM-Uncensored-Falcon-7b-Q2_K.gguf"
-
-# Check models
-if [ ! -f "$LLAMA_MODEL" ]; then
-    echo "❌ LLaMA model not found: $LLAMA_MODEL"
-    exit 1
-fi
-
-if [ ! -f "$FALCON_MODEL" ]; then
-    echo "❌ Falcon model not found: $FALCON_MODEL"
-    exit 1
-fi
-
-# GPU parameters with enhanced settings for vector workloads (FIX: Reduced layers)
-GPU_PARAMS_LLAMA=""
-GPU_PARAMS_FALCON=""
-if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
-    echo "🚀 GPU detected, enabling acceleration for LLM and vector operations..."
-    GPU_PARAMS_LLAMA="-ngl 25"  # Reduced from 33
-    GPU_PARAMS_FALCON="-ngl 20"  # Reduced from 28
-fi
-
-# Start LLaMA server with enhanced parameters (FIX: Adjusted context and batch sizes)
-LLAMA_CMD="$LLAMA_SERVER_BIN -m $LLAMA_MODEL -c 2048 -b 512 --host 0.0.0.0 --port 8080 -t $(nproc) $GPU_PARAMS_LLAMA --mlock"
-start_service "LLaMA" "$LLAMA_CMD" "8080" "$PROJECT_DIR/llama_server.log"
-
-# Start Falcon server (FIX: Adjusted parameters)
-FALCON_CMD="$LLAMA_SERVER_BIN -m $FALCON_MODEL -c 1024 -b 256 --host 0.0.0.0 --port 8081 -t $(nproc) $GPU_PARAMS_FALCON --mlock"
-start_service "Falcon" "$FALCON_CMD" "8081" "$PROJECT_DIR/falcon_server.log"
-
-# Wait for models
-wait_for_service "LLaMA" "http://localhost:8080/health"
-wait_for_service "Falcon" "http://localhost:8081/health"
-
-# Activate Python environment
-if [ -f "$PROJECT_DIR/venv/bin/activate" ]; then
-    source "$PROJECT_DIR/venv/bin/activate"
-    echo "✅ Python environment activated"
-fi
-
-# Set environment variables for enhanced features
-export PROJECT_DIR="$PROJECT_DIR"
-export TOKENIZERS_PARALLELISM=false  # Avoid warnings with sentence-transformers
-export CUDA_VISIBLE_DEVICES=0  # Use first GPU if available
-export PYTHONUNBUFFERED=1  # Show Python output immediately
-
-# Start enhanced backend with vector capabilities
-echo "🧠 Starting Enhanced Backend with Vector Embeddings..."
-cd "$PROJECT_DIR/backend"
-start_service "Backend" "uvicorn server:app --host 0.0.0.0 --port 8000 --timeout-keep-alive 180 --limit-concurrency 100" "8000" "$PROJECT_DIR/backend_server.log"
-
-wait_for_service "Backend" "http://localhost:8000/health"
-
-echo ""
-echo "🎉 HarpoonAI Enhanced System Started Successfully!"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🌐 Web Interface: http://localhost:8000"
-echo "🤖 LLaMA Server: http://localhost:8080"
-echo "🦅 Falcon Server: http://localhost:8081"
-echo ""
-echo "🧠 ENHANCED FEATURES:"
-echo "   ✅ Vector embeddings with sentence-transformers (all-MiniLM-L6-v2)"
-echo "   ✅ ChromaDB vector database for semantic search"
-echo "   ✅ Intelligent document chunking with semantic awareness"
-echo "   ✅ Hybrid search (semantic + keyword matching)"
-echo "   ✅ Enhanced conversation context management"
-echo "   ✅ Improved document processing with spaCy/NLTK"
-echo "   ✅ GPU acceleration for both LLM and ML workloads"
-echo ""
-echo "📁 Log Files:"
-echo "   LLaMA:   $PROJECT_DIR/llama_server.log"
-echo "   Falcon:  $PROJECT_DIR/falcon_server.log"
-echo "   Backend: $PROJECT_DIR/backend_server.log"
-echo ""
-echo "📊 Data Directories:"
-echo "   Documents: $PROJECT_DIR/documents"
-echo "   Vector DB: $PROJECT_DIR/vector_db"
-echo "   Embeddings: $PROJECT_DIR/embeddings"
-echo ""
-echo "🛑 To stop: $PROJECT_DIR/stop_harpoonai.sh"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-STARTEOF
-
-# Create enhanced stop script
-echo "🛑 Creating enhanced stop script..."
-cat > "$PROJECT_DIR/stop_harpoonai.sh" << 'STOPEOF'
-#!/bin/bash
-
-PROJECT_DIR="$HOME/offline_ai_chat"
-cd "$PROJECT_DIR"
-
-echo "🛑 Stopping HarpoonAI Enhanced System..."
-
-stop_service() {
-    local name="$1"
-    local pid_file="$PROJECT_DIR/${name,,}_pid.txt"
-
-    if [ -f "$pid_file" ]; then
-        local pid=$(cat "$pid_file")
-        if kill -0 "$pid" 2>/dev/null; then
-            echo "🛑 Stopping $name (PID: $pid)..."
-            kill "$pid"
-            sleep 2
-            if kill -0 "$pid" 2>/dev/null; then
-                echo "   Force killing $name..."
-                kill -9 "$pid"
-            fi
-            echo "✅ $name stopped"
-        fi
-        rm -f "$pid_file"
-    fi
-}
-
-stop_service "Backend"
-stop_service "Falcon"
-stop_service "LLaMA"
-
-# Kill any remaining processes on ports
-for port in 8000 8080 8081; do
-    fuser -k ${port}/tcp 2>/dev/null || true
-done
-
-echo "✅ HarpoonAI Enhanced System stopped"
-echo "📊 Vector database and documents preserved in $PROJECT_DIR"
-STOPEOF
-
-chmod +x "$PROJECT_DIR/start_harpoonai.sh"
-chmod +x "$PROJECT_DIR/stop_harpoonai.sh"
-
-# Create a system info script for troubleshooting
-echo "📊 Creating system info script..."
-cat > "$PROJECT_DIR/system_info.sh" << 'INFOEOF'
-#!/bin/bash
-
-PROJECT_DIR="$HOME/offline_ai_chat"
-
-echo "🔍 HarpoonAI Enhanced System Information"
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-
-echo "📁 Project Directory: $PROJECT_DIR"
-echo "🐍 Python Version: $(python3 --version 2>/dev/null || echo 'Not found')"
-
-# Check GPU
-if command -v nvidia-smi &> /dev/null && nvidia-smi &> /dev/null; then
-    echo "🎮 GPU Info:"
-    nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free --format=csv,noheader,nounits | head -1
-    echo "🔧 CUDA Version: $(nvcc --version 2>/dev/null | grep release | sed 's/.*release \([0-9.]*\).*/\1/' || echo 'Not found')"
-else
-    echo "💻 GPU: Not available (CPU only)"
-fi
-
-# Check Python packages
-echo ""
-echo "📦 Python Packages:"
-source "$PROJECT_DIR/venv/bin/activate" 2>/dev/null || echo "⚠️ Virtual environment not found"
-pip list | grep -E "(sentence-transformers|chromadb|torch|transformers|nltk|spacy)" || echo "⚠️ Some packages missing"
-
-# Check models
-echo ""
-echo "🤖 Models:"
-[ -f "$PROJECT_DIR/models/llama3/luna-ai-llama2-uncensored.Q4_K_M.gguf" ] && echo "✅ LLaMA model" || echo "❌ LLaMA model missing"
-[ -f "$PROJECT_DIR/models/Falcon/ehartford-WizardLM-Uncensored-Falcon-7b-Q2_K.gguf" ] && echo "✅ Falcon model" || echo "❌ Falcon model missing"
-
-# Check vector database
-echo ""
-echo "🧠 Vector Database:"
-if [ -d "$PROJECT_DIR/vector_db" ]; then
-    echo "✅ ChromaDB directory exists"
-    echo "📊 Size: $(du -sh $PROJECT_DIR/vector_db 2>/dev/null | cut -f1 || echo 'Unknown')"
-else
-    echo "❌ ChromaDB directory not found"
-fi
-
-# Check documents
-echo ""
-echo "📄 Documents:"
-if [ -f "$PROJECT_DIR/documents/index.json" ]; then
-    DOC_COUNT=$(python3 -c "import json; print(len(json.load(open('$PROJECT_DIR/documents/index.json'))['documents']))" 2>/dev/null || echo "Unknown")
-    echo "✅ Document index exists ($DOC_COUNT documents)"
-else
-    echo "❌ Document index not found"
-fi
-
-# Check services
-echo ""
-echo "🔌 Service Status:"
-curl -s http://localhost:8000/health > /dev/null 2>&1 && echo "✅ Backend API" || echo "❌ Backend API"
-curl -s http://localhost:8080/health > /dev/null 2>&1 && echo "✅ LLaMA Server" || echo "❌ LLaMA Server"
-curl -s http://localhost:8081/health > /dev/null 2>&1 && echo "✅ Falcon Server" || echo "❌ Falcon Server"
-
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-INFOEOF
-
-chmod +x "$PROJECT_DIR/system_info.sh"
-
-echo ""
-echo "✅ ENHANCED HarpoonAI Installation completed!"
-echo ""
-echo "🧠 ENHANCED FEATURES INSTALLED:"
-echo "   ✅ Vector Embeddings: sentence-transformers (all-MiniLM-L6-v2)"
-echo "   ✅ Vector Database: ChromaDB with persistent storage"
-echo "   ✅ Semantic Search: Hybrid semantic + keyword matching"
-echo "   ✅ Smart Chunking: Context-aware document segmentation"
-echo "   ✅ Enhanced Context: Better conversation memory management"
-echo "   ✅ ML Libraries: PyTorch, transformers, scikit-learn, NLTK, spaCy"
-echo "   ✅ GPU Support: Automatic detection and acceleration"
-echo ""
-echo "🚀 GPU Status: $([ "$CUDA_AVAILABLE" = true ] && echo "ENABLED" || echo "DISABLED")"
-echo "📁 Project directory: $PROJECT_DIR"
-echo ""
-echo "📊 DIRECTORY STRUCTURE:"
-echo "   📄 Documents: $PROJECT_DIR/documents"
-echo "   🧠 Vector DB: $PROJECT_DIR/vector_db"
-echo "   🔧 Backend: $PROJECT_DIR/backend"
-echo "   🌐 Frontend: $PROJECT_DIR/frontend"
-echo "   📚 Models: $PROJECT_DIR/models"
-echo "   🗂️ Uploads: $PROJECT_DIR/uploads"
-echo ""
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "🎉 To start the ENHANCED system:"
-echo "   $PROJECT_DIR/start_harpoonai.sh"
-echo ""
-echo "🛑 To stop all services:"
-echo "   $PROJECT_DIR/stop_harpoonai.sh"
-echo ""
-echo "📊 To check system status:"
-echo "   $PROJECT_DIR/system_info.sh"
-echo ""
-echo "🌐 Once started, access: http://localhost:8000"
-echo ""
-echo "🧠 FIXES APPLIED:"
-echo "   ✅ Fixed timeout issues by optimizing chunk sizes and context length"
-echo "   ✅ Fixed document context by improving search and retrieval logic"
-echo "   ✅ Added proper session management for conversation history"
-echo "   ✅ Improved error handling and logging throughout"
-echo "   ✅ Optimized GPU memory usage for stability"
-echo "   ✅ Fixed dependency installation order to prevent conflicts"
-echo "   ✅ Added better fallbacks for missing components"
-echo ""
-echo "🚀 The system will automatically download sentence-transformer models on first use."
-echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"innerHTML = data.documents.map(doc => `
-                        <div class="document-item">
-                            <div class="document-info">
-                                <div class="document-title">${doc.title}</div>
-                                <div class="document-meta">${doc.file_type} • ${formatFileSize(doc.size)} • ${formatDate(doc.upload_date)}</div>
-                            </div>
-                            <button class="delete-btn" onclick="deleteDocument('${doc.id}', '${doc.title.replace(/'/g, "\\'")}')">×</button>
-                        </div>
-                    `).join('');
-                } else {
-                    documentsList.
