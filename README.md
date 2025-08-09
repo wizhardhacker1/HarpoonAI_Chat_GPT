@@ -61,6 +61,17 @@ Download the "shortcuts.sh" open new tab chmod +x shortcuts.sh
 run script
 ./shortcuts.sh
 
+**
+
+Upgrade fixes timeouts and few minor issues - if you get errors mostly ignore and try to run and test 
+
+chmod +x upgrade.sh
+
+
+./upgrade.sh
+
+**
+
 
 <img width="314" height="253" alt="Screenshot_20250807_212829" src="https://github.com/user-attachments/assets/c30bbb8e-1491-4b9a-9934-125bee40e201" />
 
